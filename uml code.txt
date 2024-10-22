@@ -1,0 +1,301 @@
+//Class diagram
+@startuml
+class GameEngine {
+ - instance: GameEngine
+ - rendererEngine: RendererEngine
+ - firstClick: bool
+ - gameOver: bool
+ - gameWin: bool
+ - field: Field
+ - timer: Timer
+ + GameEngine()
+ + startGame(): void
+ + handleEvents(): void
+ + restartGame(): void
+}
+class RendererEngine {
+ - instance: RendererEngine
+ - gameEngine: GameEngine
+ + RendererEngine()
+ + drawStart(): void
+ + drawWin(): void
+ + drawGameOver(): void
+ + drawFrame(): void
+ + drawScoreTimer(): void
+ + drawField(): void
+}
+class Timer{
+ - instance: Timer
+ - startPoint: chrono::time_point
+ - duration: chrono::seconds
+ + Timer()
+ + start()
+ + stop()
+ + reset()
+ + getDuration(): int
+}
+class Field {
+ - field: vector<vector<Cell>
+ - rows: int
+ - cols: int
+ - mines: int
+ - minesLeft: int
+ + Field(rows: int, columns: int, minesCount: int)
+ + checkGameOver(): bool
+ + checkGameWin(): bool
+ + openCell(x: int, y: int): void
+ + flagCell(x: int, y: int): void
+ + getCell(x: int, y: int): Cell
+ + getMinesLeft(): int
+ + ~Field()
+}
+class Cell {
+ - isFlagged: bool
+ - isOpen: bool
+ - isMine: bool
+ - x: int
+ - y: int
+ - minesAround: int
+ + Cell(x: int, y: int)
+ + hasMine(): bool
+ + opened(): bool
+ + hasFlag(): bool
+ + open(cells: vector<vector<Cell>>&): void
+ + setMine(): void
+ + setFlag(): void
+ + countMinesAround(cells: vector<vector<Cell>>&)
+ + reset(): void
+}
+enum FieldSize {
+    SMALL
+    MEDIUM
+    LARGE
+}
+GameEngine <--> RendererEngine: Main communication
+GameEngine o-- Field
+GameEngine o-- Timer
+Field o-- Cell
+FieldSize --> Field: Define size and mines count
+@enduml
+
+//Sequence diagram
+@startuml
+actor User as u
+participant "GameEngine" as GE
+participant "RendererEngine" as RE
+participant "Timer" as T
+participant "Field" as F
+participant "Cell" as C
+activate GE
+activate RE
+activate T
+GE -> GE: startGame()
+GE -> RE: drawStart()
+u -> GE: Click on Field Size Option
+GE -> GE: handleEvents()
+activate F
+GE -> F: Field()
+F -> C: Cell()
+C --> F: Cell
+F --> GE: Field
+GE -> RE: drawFrame()
+RE -> RE: drawField()
+RE -> RE: drawScoreTimer()
+u -> GE: Click on cell
+GE -> GE: handleEvents()
+GE -> T: start()
+GE -> F: openCell()
+F -> F: getCell()
+F -> C: open()
+GE -> F: checkGameOver()
+F -> GE: gameOver(bool)
+note left
+Oops there was a mine
+end note
+GE -> T: stop()
+GE -> F: ~Field()
+deactivate F
+GE -> RE: drawGameOver()
+u -> GE: Rage Quit and close window
+GE -> GE: handleEvents()
+deactivate RE
+deactivate GE
+deactivate T
+@enduml
+
+//Another sequence
+@startuml
+actor User as u
+participant "GameEngine" as GE
+participant "RendererEngine" as RE
+participant "Timer" as T
+participant "Field" as F
+participant "Cell" as C
+activate GE
+activate RE
+activate T
+GE -> GE: startGame()
+GE -> RE: drawStart()
+u -> GE: Click on Field Size Option
+GE -> GE: handleEvents()
+activate F
+GE -> F: Field()
+F -> C: Cell()
+C --> F: Cell
+F --> GE: Field
+GE -> RE: drawFrame()
+RE -> RE: drawField()
+RE -> RE: drawScoreTimer()
+u -> GE: Click on cell
+GE -> GE: handleEvents()
+GE -> T: start()
+GE -> F: openCell()
+F -> F: getCell()
+F -> C: open()
+GE -> F: checkGameOver()
+F --> GE: gameOver(bool)
+GE -> F: checkGameWin()
+F --> GE: gameWin
+GE -> T: stop()
+GE -> F: ~Field()
+deactivate F
+GE -> RE: drawGameWin()
+u -> GE: Restart
+GE -> GE: handleEvents()
+...Loop starts again...
+@enduml
+
+//Another sequence
+@startuml
+actor User as u
+participant "GameEngine" as GE
+participant "RendererEngine" as RE
+participant "Timer" as T
+participant "Field" as F
+participant "Cell" as C
+activate GE
+activate RE
+activate T
+GE -> GE: startGame()
+GE -> RE: drawStart()
+u -> GE: Click on Field Size Option
+GE -> GE: handleEvents()
+activate F
+GE -> F: Field()
+F -> C: Cell()
+C --> F: Cell
+F --> GE: Field
+GE -> RE: drawFrame()
+RE -> RE: drawField()
+RE -> RE: drawScoreTimer()
+u -> GE: Flag cell
+GE -> GE: handleEvents()
+GE -> T: start()
+GE -> F: flagCell()
+F -> F: getCell()
+F -> C: flag()
+u -> GE: Close window
+GE -> GE: handleEvents()
+GE -> F: ~Field()
+deactivate GE
+deactivate T
+deactivate RE
+deactivate F
+@enduml
+
+//Activity diagram
+@startuml
+start
+repeat :Game starts;
+:Choose field size;
+:Field created and filled;
+repeat
+ if (User action) then (Open cell)
+  if (First cell) then (yes)
+   :Start timer;
+  else (No)
+  endif
+  if (Cell has mine) then (Yes)
+   :Game Over;
+   :Stop timer;
+  else (No)
+   :Reveal cell;
+   if (All cells are open) then (Yes)
+    :Win;
+    :Stop timer;
+   else (No)
+     :Continue playing;
+   endif
+  endif
+ else (Flag cell)
+  if (First cell) then (yes)
+   :Start timer;
+  else (No)
+  endif
+  :Toggle flag on cell;
+ endif
+repeat while (User won or lose) is (No)
+backward:Reset field and timer;
+repeat while (Restart game?) is (Yes)
+stop
+@enduml
+//Cell state
+@startuml
+state Closed {
+state Unflagged
+state Flagged
+}
+state Opened {
+state Empty
+state Mine
+}
+
+[*] --> Unflagged
+Unflagged -left-> Flagged : Flag cell
+Flagged -right-> Unflagged : Unflag cell
+Unflagged -down-> Opened: Open cell
+note right of Opened
+After opening there can be either empty or mined cell
+end note
+@enduml
+
+// Game state
+@startuml
+state Running
+state Win
+state GameOver
+[*] --> Running: Start game
+Running -left-> Win
+Running -right-> GameOver
+Running --> [*]
+GameOver -left-> Running: Restart
+GameOver --> [*]
+Win -right-> Running: Restart
+Win --> [*]
+@enduml
+
+//Use case diagram
+@startuml
+
+left to right direction
+actor User as u
+
+rectangle "Minesweeper Game" {
+    usecase "Start Game" as SG
+    usecase "Select Difficulty" as SD
+    usecase "Open Cell" as OC
+    usecase "Flag Cell" as FC
+    usecase "Unflag Cell" as UC
+    usecase "Restart Game" as RG
+    usecase "Win/Lose Game" as WL
+}
+
+u --> SG
+u --> SD
+u --> OC
+u --> FC
+u --> UC
+u --> RG
+u --> WL
+
+@enduml
